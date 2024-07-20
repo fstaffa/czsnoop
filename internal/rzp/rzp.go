@@ -194,19 +194,6 @@ func (r *Rzp) GetSubjectDetails(ssarzp Ssarzp) (SubjectDetail, error) {
 		return SubjectDetail{}, fmt.Errorf("unable to unmarshal response: %v", err)
 	}
 
-	trades := make([]Trade, 0, len(v.Subjekt.ZivnostiSeznam.Zivnost))
-	for _, z := range v.Subjekt.ZivnostiSeznam.Zivnost {
-		date, err := time.Parse(dateFormat, z.DatumVzniku)
-		if err != nil {
-			return SubjectDetail{}, fmt.Errorf("unable to parse date: %v", err)
-		}
-		trades = append(trades, Trade{
-			TradeType:         z.Predmet.HodnotaPredmetDruh.Hodnota,
-			DateOfOrigin:      date,
-			ValidityOfLicense: z.PlatnostZivnosti.Hodnota,
-		})
-	}
-
 	deeperDetails, err := r.getSubjectStatement(v.Subjekt.Odkazy.VypisXML)
 	if err != nil {
 		return SubjectDetail{}, fmt.Errorf("unable to get deeper subject details: %v", err)
