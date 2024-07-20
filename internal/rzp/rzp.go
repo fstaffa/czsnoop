@@ -133,9 +133,10 @@ func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, er
 		contentB, err := io.ReadAll(resp.Body)
 		var contentS string
 		if err != nil {
-			contentS = "Unable to read error response string"
+			contentS = "[unable to read search subject error response string]"
+		} else {
+			contentS = string(contentB)
 		}
-		contentS = string(contentB)
 
 		return SearchSubjectResponse{}, fmt.Errorf("unexpected status code: %d and status %s, with response %s", resp.StatusCode, resp.Status, contentS)
 	}
@@ -191,19 +192,6 @@ func (r *Rzp) GetSubjectDetails(ssarzp Ssarzp) (SubjectDetail, error) {
 	err = xml.NewDecoder(resp.Body).Decode(&v)
 	if err != nil {
 		return SubjectDetail{}, fmt.Errorf("unable to unmarshal response: %v", err)
-	}
-
-	trades := make([]Trade, 0, len(v.Subjekt.ZivnostiSeznam.Zivnost))
-	for _, z := range v.Subjekt.ZivnostiSeznam.Zivnost {
-		date, err := time.Parse(dateFormat, z.DatumVzniku)
-		if err != nil {
-			return SubjectDetail{}, fmt.Errorf("unable to parse date: %v", err)
-		}
-		trades = append(trades, Trade{
-			TradeType:         z.Predmet.HodnotaPredmetDruh.Hodnota,
-			DateOfOrigin:      date,
-			ValidityOfLicense: z.PlatnostZivnosti.Hodnota,
-		})
 	}
 
 	deeperDetails, err := r.getSubjectStatement(v.Subjekt.Odkazy.VypisXML)

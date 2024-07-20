@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Check Nixpkgs inputs
+        uses: DeterminateSystems/flake-checker-action@main
+        with:
+          fail-mode: true
+      - name: Go fmt
+        run: |
+          if [ -n "$(nix develop --command go fmt ./...)" ]; then
+            echo "You must run 'go fmt ./...' to format your code before pushing."
+            exit 1
+          fi
+      - name: Golang lint ci
+        run: nix develop --command golangci-lint run
+      - name: Golang tests
+        run: nix develop --command go test ./...
+      - name: Go build
+        run: nix develop --command go build
