@@ -17,13 +17,11 @@ jobs:
         uses: DeterminateSystems/flake-checker-action@main
         with:
           fail-mode: true
-      - name: Use nix shell
-        run: nix develop
       - name: Go fmt
         run: |
-          if [ -n "$(go fmt ./...)" ]; then
+          if [ -n "$(nix develop --command go fmt ./...)" ]; then
             echo "You must run 'go fmt ./...' to format your code before pushing."
             exit 1
           fi
       - name: Golang lint ci
-        run: golangci-lint
+        run: nix develop --command golangci-lint run
