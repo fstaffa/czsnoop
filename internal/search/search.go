@@ -121,9 +121,7 @@ func rzpWideSearch(searchQuery rzp.SearchSubjectQuery, client *rzp.Rzp, cancel c
 		if result.Result.MorePossibleMatches {
 			return nil, fmt.Errorf("too many possible matches, please provide more details")
 		}
-		for _, subject := range result.Result.Subjects {
-			searchResult = append(searchResult, subject)
-		}
+		searchResult = append(searchResult, result.Result.Subjects...)
 
 	}
 	return searchResult, nil

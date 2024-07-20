@@ -133,9 +133,10 @@ func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, er
 		contentB, err := io.ReadAll(resp.Body)
 		var contentS string
 		if err != nil {
-			contentS = "Unable to read error response string"
+			contentS = "[unable to read search subject error response string]"
+		} else {
+			contentS = string(contentB)
 		}
-		contentS = string(contentB)
 
 		return SearchSubjectResponse{}, fmt.Errorf("unexpected status code: %d and status %s, with response %s", resp.StatusCode, resp.Status, contentS)
 	}
