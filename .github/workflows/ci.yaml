@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-  pull_request:
 
 jobs:
   build:
@@ -19,7 +18,7 @@ jobs:
         with:
           fail-mode: true
       - name: Use nix shell
-        run: nix-develop
+        run: nix develop
       - name: Go fmt
         run: |
           if [ -n "$(go fmt ./...)" ]; then
