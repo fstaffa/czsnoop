@@ -21,9 +21,8 @@ jobs:
       - name: Use nix shell
         run: nix-develop
       - name: Go fmt
-        run:
-          run: |
-            if [ -n "$(go fmt ./...)" ]; then
-              echo "You must run 'go fmt ./...' to format your code before pushing."
-              exit 1
-            fi
+        run: |
+          if [ -n "$(go fmt ./...)" ]; then
+            echo "You must run 'go fmt ./...' to format your code before pushing."
+            exit 1
+          fi
