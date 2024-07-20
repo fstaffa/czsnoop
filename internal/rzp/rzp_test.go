@@ -29,7 +29,7 @@ func Test_CreateClient(t *testing.T) {
 		t.Errorf("Received unexpected error %v", err)
 	}
 	if rzp == nil {
-		t.Fatalf("Expected rzp to be non-nil")
+		t.Errorf("Expected rzp to be non-nil")
 	}
 	if rzp.sessionId == "" {
 		t.Errorf("Expected session id to be non-zero")
