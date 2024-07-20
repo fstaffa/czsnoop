@@ -27,3 +27,5 @@ jobs:
         run: nix develop --command golangci-lint run
       - name: Golang tests
         run: nix develop --command go test ./...
+      - name: Go build
+        run: nix develop --command go build
