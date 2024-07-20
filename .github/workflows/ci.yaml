@@ -25,3 +25,5 @@ jobs:
             echo "You must run 'go fmt ./...' to format your code before pushing."
             exit 1
           fi
+      - name: Golang lint ci
+        run: golangci-lint
