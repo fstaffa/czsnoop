@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,14 +54,19 @@ func SearchRzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 		searchQuery.Name = input.Query
 	}
 
-	searchResult, err := rzpWideSearch(searchQuery, client, cancel, logger)
+	searchResult, err := rzpSubjectWideSearch(searchQuery, client, cancel, logger)
 	if err != nil {
 		return nil, err
 	}
 	logger.Debug("Found subjects", slog.Int("count", len(searchResult)))
 
-	resultWithDetails := rzpDeepSearch(client, searchResult, logger)
-	persons := make([]Person, 0, len(resultWithDetails))
+	resultWithDetails := rzpSubjectDeepSearch(client, searchResult, logger)
+
+	personsSearch, err := rzpPersonSearch(searchQuery, client, cancel, logger)
+	if err != nil {
+		return nil, fmt.Errorf("unable to search persons in RZP: %v", err)
+	}
+	persons := make([]Person, 0, len(resultWithDetails)+len(personsSearch))
 	for _, person := range resultWithDetails {
 		if !input.BornAfter.IsZero() && person.BirthDate.Before(input.BornAfter) {
 			logger.Debug("Skipping person because they were born before required time",
@@ -90,10 +96,46 @@ func SearchRzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 		})
 	}
 
+	persons = append(persons, personsSearch...)
+
 	return persons, nil
 }
 
-func rzpWideSearch(searchQuery rzp.SearchSubjectQuery, client *rzp.Rzp, cancel context.CancelCauseFunc, logger *slog.Logger) ([]rzp.Subject, error) {
+func rzpPersonSearch(searchQuery rzp.SearchSubjectQuery, client *rzp.Rzp, cancel context.CancelCauseFunc, logger *slog.Logger) ([]Person, error) {
+	personQuery := rzp.SearchPersonQuery{}
+	if searchQuery.Name != "" {
+		parts := strings.Split(searchQuery.Name, " ")
+		firstName := strings.Join(parts[0:(len(parts)-1)], " ")
+		surname := parts[len(parts)-1]
+		personQuery.FirstName = firstName
+		personQuery.Surname = surname
+	}
+
+	persons, err := client.SearchPerson(personQuery)
+	if err != nil {
+		err := fmt.Errorf("unable to search persons in RZP: %v", err)
+		cancel(err)
+		return nil, err
+	}
+	if persons.MorePossibleMatches {
+		return nil, fmt.Errorf("too many possible matches, please provide more details")
+	}
+
+	logger.Debug("Found persons", slog.Int("count", len(persons.People)))
+	var result []Person = make([]Person, 0, len(persons.People))
+	for _, person := range persons.People {
+		result = append(result, Person{
+			FirstName:       person.FirstName,
+			LastName:        person.LastName,
+			TitleBeforeName: person.TitleBeforeName,
+			TitleAfterName:  person.TitleAfterName,
+		})
+	}
+
+	return result, nil
+}
+
+func rzpSubjectWideSearch(searchQuery rzp.SearchSubjectQuery, client *rzp.Rzp, cancel context.CancelCauseFunc, logger *slog.Logger) ([]rzp.Subject, error) {
 	results := make(chan types.Result[rzp.SearchSubjectResponse])
 	searchFunc := func(subjectType string) {
 		enterpreneurQuery := searchQuery
@@ -127,7 +169,7 @@ func rzpWideSearch(searchQuery rzp.SearchSubjectQuery, client *rzp.Rzp, cancel c
 	return searchResult, nil
 }
 
-func rzpDeepSearch(r *rzp.Rzp, subjects []rzp.Subject, logger *slog.Logger) []rzp.SubjectDetail {
+func rzpSubjectDeepSearch(r *rzp.Rzp, subjects []rzp.Subject, logger *slog.Logger) []rzp.SubjectDetail {
 	parallelization := min(6, len(subjects))
 	inputs := make(chan rzp.Subject, parallelization)
 	resultChan := make(chan rzp.SubjectDetail)

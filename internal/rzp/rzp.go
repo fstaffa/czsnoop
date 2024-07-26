@@ -96,6 +96,7 @@ type SearchSubjectQuery struct {
 	Ico            types.Ico
 	// either 'enterpreneur' or 'statutory body'
 	SubjectType string
+	PersonId    PersonId
 }
 
 func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, error) {
@@ -106,6 +107,9 @@ func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, er
 	req.Header.Set("Sesid", r.sessionId)
 	req.Header.Set("Accept-Language", "cs")
 	q := req.URL.Query()
+	if query.PersonId != "" {
+		q.Add("o-id", string(query.PersonId))
+	}
 	if query.Name != "" {
 		q.Add("s-obchjm", query.Name)
 	}
@@ -118,8 +122,6 @@ func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, er
 		q.Add("s-role", "S")
 	} else if query.SubjectType == "enterpreneur" {
 		q.Add("s-role", "P")
-	} else {
-		return SearchSubjectResponse{}, fmt.Errorf("unknown subject type: %s", query.SubjectType)
 	}
 
 	req.URL.RawQuery = q.Encode()
@@ -275,6 +277,8 @@ type SearchPersonResponse struct {
 	People              []Person `json:"osoby"`
 }
 
+type PersonId string
+
 type Person struct {
 	FirstName       string      `json:"jmeno"`
 	LastName        string      `json:"prijmeni"`
@@ -282,7 +286,7 @@ type Person struct {
 	TitleBeforeName string      `json:"titulPred"`
 	TitleAfterName  string      `json:"titulZa"`
 	DateOfBirth     Iso8601Date `json:"datum"`
-	PersonId        string      `json:"idOsoby"`
+	PersonId        PersonId    `json:"idOsoby"`
 
 	//not sure what this is
 	PersonRole string `json:"roleOsoby"`

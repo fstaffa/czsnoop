@@ -234,3 +234,24 @@ func Test_SearchPerson_ParseTitle(t *testing.T) {
 		t.Errorf("Expected title after name to be %s, got %s", detailedSubject.TitleAfterName, person.TitleAfterName)
 	}
 }
+
+func Test_SearchSubject_ByPersonId(t *testing.T) {
+	t.Parallel()
+
+	res, err := rzp.SearchPerson(SearchPersonQuery{Surname: "novak"})
+	if err != nil {
+		t.Fatalf("Unable to search person %v", err)
+	}
+	if len(res.People) == 0 {
+		t.Fatalf("Expected at least one person")
+	}
+	personId := res.People[0].PersonId
+
+	subjects, err := rzp.SearchSubject(SearchSubjectQuery{PersonId: personId})
+	if err != nil {
+		t.Fatalf("Unable to search subject %v", err)
+	}
+	if len(subjects.Subjects) == 0 {
+		t.Fatalf("Expected at least one subject")
+	}
+}
