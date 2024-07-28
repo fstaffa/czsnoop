@@ -54,7 +54,7 @@ var searchCmd = &cobra.Command{
 		if cmd.Flags().Changed("name") {
 			searchInput.Query = nameFlag
 		}
-		fmt.Print(search.SearchRzp(searchInput, logger))
+		fmt.Print(search.Rzp(searchInput, logger))
 	},
 }
 
