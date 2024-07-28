@@ -31,14 +31,7 @@ type Person struct {
 	Subjects        []rzp.Subject
 }
 
-type SearchResult struct {
-	// If true, this search was not able to go through all matches. If relevant match wasn't found
-	// try to add more details
-	MorePossibleNatches bool
-	People              []Person
-}
-
-func SearchRzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
+func Rzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	logger = logger.With("search", "rzp")
 	defer cancel(nil)
@@ -50,31 +43,31 @@ func SearchRzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 	if input.Query != "" {
 		searchQuery.Name = input.Query
 	}
-	personsSearch, err := rzpPersonSearch(searchQuery, client, cancel, logger)
+	rzpPersons, err := rzpPersonSearch(searchQuery, client, cancel, logger)
 	if err != nil {
 		return nil, fmt.Errorf("unable to search persons in RZP: %v", err)
 	}
 
 	wg := sync.WaitGroup{}
 	resultChan := make(chan types.Result[Person])
-	for _, person := range personsSearch {
-		logger.Debug("Searching subjects for person", slog.String("person", person.DisplayName))
+	for _, rzpPerson := range rzpPersons {
+		logger.Debug("Searching subjects for person", slog.String("person", rzpPerson.DisplayName))
 		wg.Add(1)
 		go func() {
 			subjects, err := client.SearchSubject(rzp.SearchSubjectQuery{
-				PersonId: person.PersonId,
+				PersonId: rzpPerson.PersonId,
 			})
 			if err != nil {
 				cancel(err)
 				resultChan <- types.Result[Person]{Err: err}
 			}
 			person := Person{
-				BirthDate:       time.Time(person.DateOfBirth),
-				FirstName:       person.FirstName,
-				LastName:        person.LastName,
-				TitleBeforeName: person.TitleBeforeName,
-				TitleAfterName:  person.TitleAfterName,
-				FullName:        person.DisplayName,
+				BirthDate:       time.Time(rzpPerson.DateOfBirth),
+				FirstName:       rzpPerson.FirstName,
+				LastName:        rzpPerson.LastName,
+				TitleBeforeName: rzpPerson.TitleBeforeName,
+				TitleAfterName:  rzpPerson.TitleAfterName,
+				FullName:        rzpPerson.DisplayName,
 				Subjects:        subjects.Subjects,
 			}
 			for _, subject := range subjects.Subjects {
@@ -102,7 +95,7 @@ func SearchRzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 		close(resultChan)
 	}()
 
-	persons := make([]Person, 0, len(personsSearch))
+	persons := make([]Person, 0, len(rzpPersons))
 	for result := range resultChan {
 		persons = append(persons, result.Result)
 	}
