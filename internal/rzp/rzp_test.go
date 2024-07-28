@@ -3,6 +3,7 @@ package rzp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"testing"
@@ -13,7 +14,7 @@ var rzp *Rzp
 
 func TestMain(m *testing.M) {
 	var err error
-	rzp, err = CreateClient(context.Background())
+	rzp, err = CreateClient(context.Background(), slog.Default())
 	if err != nil {
 		fmt.Printf("Unable to create client %v", err)
 		os.Exit(1)
@@ -24,7 +25,7 @@ func TestMain(m *testing.M) {
 
 func Test_CreateClient(t *testing.T) {
 	t.Parallel()
-	rzp, err := CreateClient(context.Background())
+	rzp, err := CreateClient(context.Background(), slog.Default())
 	if err != nil {
 		t.Errorf("Received unexpected error %v", err)
 	}

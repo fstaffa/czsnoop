@@ -30,8 +30,7 @@ type Rzp struct {
 // This field seem to be bound to session
 type Ssarzp string
 
-func CreateClient(context context.Context) (*Rzp, error) {
-	logger := slog.Default()
+func CreateClient(context context.Context, logger *slog.Logger) (*Rzp, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create cookie jar for client: %v", err)
@@ -83,6 +82,8 @@ type Subject struct {
 	Ico     types.Ico `json:"ico"`
 	Address string    `json:"sidlo"`
 	Ssarzp  Ssarzp    `json:"ssarzp"`
+	// either P for Legal Entity or F for natural person
+	Type string `json:"typ"`
 }
 
 type SearchSubjectResponse struct {
