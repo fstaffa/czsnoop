@@ -39,10 +39,10 @@ type SearchResult struct {
 }
 
 func SearchRzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
-	context, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancelCause(context.Background())
 	logger = logger.With("search", "rzp")
 	defer cancel(nil)
-	client, err := rzp.CreateClient(context, logger.With("client", "rzp"))
+	client, err := rzp.CreateClient(ctx, logger.With("client", "rzp"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create RZP client: %v", err)
 	}

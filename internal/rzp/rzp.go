@@ -27,26 +27,26 @@ type Rzp struct {
 	context   context.Context
 }
 
-// This field seem to be bound to session
+// Ssarzp field seems to be bound to session
 type Ssarzp string
 
-func CreateClient(context context.Context, logger *slog.Logger) (*Rzp, error) {
+func CreateClient(ctx context.Context, logger *slog.Logger) (*Rzp, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create cookie jar for client: %v", err)
 	}
 
 	client := http.Client{Jar: jar, Timeout: 60 * time.Second}
-	sessionId, err := getSessionId(&client, context)
+	sessionId, err := getSessionId(&client, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get session id: %v", err)
 	}
-	logger.DebugContext(context, "Created RZP client", slog.String("rzpSessionId", sessionId))
+	logger.DebugContext(ctx, "Created RZP client", slog.String("rzpSessionId", sessionId))
 	return &Rzp{
 		sessionId: sessionId,
 		client:    client,
 		logger:    logger,
-		context:   context,
+		context:   ctx,
 	}, nil
 }
 
