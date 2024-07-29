@@ -12,7 +12,7 @@ import (
 	"github.com/fstaffa/czsnoop/internal/types"
 )
 
-type SearchInput struct {
+type PersonSearchInput struct {
 	Ico        types.Ico
 	Query      string
 	BornAfter  time.Time
@@ -28,10 +28,16 @@ type Person struct {
 	TitleAfterName  string
 	FullName        string
 	Address         string
-	Subjects        []rzp.Subject
+	Subjects        []EconomicSubject
 }
 
-func Rzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
+type EconomicSubject struct {
+	Name    string
+	Address string
+	Ico     types.Ico
+}
+
+func Rzp(input PersonSearchInput, logger *slog.Logger) ([]Person, error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	logger = logger.With("search", "rzp")
 	defer cancel(nil)
@@ -61,6 +67,15 @@ func Rzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 				cancel(err)
 				resultChan <- types.Result[Person]{Err: err}
 			}
+			economicSubjects := make([]EconomicSubject, 0, len(subjects.Subjects))
+			for _, subject := range subjects.Subjects {
+				economicSubjects = append(economicSubjects, EconomicSubject{
+					Name:    subject.Name,
+					Address: subject.Address,
+					Ico:     subject.Ico,
+				})
+			}
+
 			person := Person{
 				BirthDate:       time.Time(rzpPerson.DateOfBirth),
 				FirstName:       rzpPerson.FirstName,
@@ -68,7 +83,7 @@ func Rzp(input SearchInput, logger *slog.Logger) ([]Person, error) {
 				TitleBeforeName: rzpPerson.TitleBeforeName,
 				TitleAfterName:  rzpPerson.TitleAfterName,
 				FullName:        rzpPerson.DisplayName,
-				Subjects:        subjects.Subjects,
+				Subjects:        economicSubjects,
 			}
 			for _, subject := range subjects.Subjects {
 				if subject.Type == "F" {

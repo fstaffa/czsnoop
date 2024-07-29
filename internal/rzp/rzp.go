@@ -36,7 +36,11 @@ func CreateClient(ctx context.Context, logger *slog.Logger) (*Rzp, error) {
 		return nil, fmt.Errorf("unable to create cookie jar for client: %v", err)
 	}
 
-	client := http.Client{Jar: jar, Timeout: 60 * time.Second}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 10
+	transport.MaxConnsPerHost = 10
+	client := http.Client{Jar: jar, Timeout: 60 * time.Second, Transport: transport}
 	sessionId, err := getSessionId(&client, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get session id: %v", err)
