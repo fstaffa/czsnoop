@@ -5,12 +5,9 @@ import (
 	"time"
 
 	"github.com/fstaffa/czsnoop/internal/search"
-	"github.com/fstaffa/czsnoop/internal/types"
 	"github.com/spf13/cobra"
 )
 
-var icoFlag string
-var nameFlag string
 var bornAfterFlag string
 
 const bornBeforeFlagName = "born-before"
@@ -20,10 +17,10 @@ var bornBeforeFlag string
 var minAge int
 var maxAge int
 
-var searchCmd = &cobra.Command{
-	Use:   "search",
-	Short: "Searches all providers using given input",
-	Args:  cobra.NoArgs,
+var personCmd = &cobra.Command{
+	Use:   "person",
+	Short: "Searches for person using all providers",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var bornAfter time.Time
 		var bornBefore time.Time
@@ -49,36 +46,25 @@ var searchCmd = &cobra.Command{
 			bornAfter = maxAgeToBornAfter(maxAge, time.Now())
 		}
 
-		searchInput := search.SearchInput{
+		searchInput := search.PersonSearchInput{
 			BornAfter:  bornAfter,
 			BornBefore: bornBefore,
+			Query:      args[0],
 		}
-		if cmd.Flags().Changed("ico") {
-			ico, err := types.CreateIco(icoFlag)
-			if err != nil {
-				logger.Error("Unable to create IČO", "error", err)
-				return
-			}
-			searchInput.Ico = ico
-		} else if cmd.Flags().Changed("name") {
-			searchInput.Query = nameFlag
-		}
-		fmt.Print(search.SearchRzp(searchInput, logger))
+
+		fmt.Print(search.Rzp(searchInput, logger))
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(searchCmd)
+	rootCmd.AddCommand(personCmd)
 
-	searchCmd.Flags().StringVar(&icoFlag, "ico", "", "Search input should be treated as IČO")
-	searchCmd.Flags().StringVar(&nameFlag, "name", "", "Search input should be treated as name")
-	searchCmd.Flags().StringVar(&bornAfterFlag, bornAfterFlagName, "", "Search for people born on given date or later")
-	searchCmd.Flags().StringVar(&bornBeforeFlag, bornBeforeFlagName, "", "Search for people born on given date or earlier")
-	searchCmd.Flags().IntVar(&minAge, "min-age", 0, "Search for people at least given age")
-	searchCmd.Flags().IntVar(&maxAge, "max-age", 100, "Search for people at most given age")
-	searchCmd.MarkFlagsMutuallyExclusive("min-age", bornBeforeFlagName)
-	searchCmd.MarkFlagsMutuallyExclusive("max-age", bornAfterFlagName)
-	searchCmd.MarkFlagsMutuallyExclusive("ico", "name")
+	personCmd.Flags().StringVar(&bornAfterFlag, bornAfterFlagName, "", "Search for people born on given date or later")
+	personCmd.Flags().StringVar(&bornBeforeFlag, bornBeforeFlagName, "", "Search for people born on given date or earlier")
+	personCmd.Flags().IntVar(&minAge, "min-age", 0, "Search for people at least given age")
+	personCmd.Flags().IntVar(&maxAge, "max-age", 120, "Search for people at most given age")
+	personCmd.MarkFlagsMutuallyExclusive("min-age", bornBeforeFlagName)
+	personCmd.MarkFlagsMutuallyExclusive("max-age", bornAfterFlagName)
 }
 
 func minAgeToBornBefore(minAge int, today time.Time) time.Time {

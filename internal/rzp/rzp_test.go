@@ -3,6 +3,7 @@ package rzp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"testing"
@@ -13,7 +14,7 @@ var rzp *Rzp
 
 func TestMain(m *testing.M) {
 	var err error
-	rzp, err = CreateClient(context.Background())
+	rzp, err = CreateClient(context.Background(), slog.Default())
 	if err != nil {
 		fmt.Printf("Unable to create client %v", err)
 		os.Exit(1)
@@ -24,7 +25,7 @@ func TestMain(m *testing.M) {
 
 func Test_CreateClient(t *testing.T) {
 	t.Parallel()
-	rzp, err := CreateClient(context.Background())
+	rzp, err := CreateClient(context.Background(), slog.Default())
 	if err != nil {
 		t.Errorf("Received unexpected error %v", err)
 	}
@@ -232,5 +233,26 @@ func Test_SearchPerson_ParseTitle(t *testing.T) {
 	}
 	if person.TitleAfterName != detailedSubject.TitleAfterName {
 		t.Errorf("Expected title after name to be %s, got %s", detailedSubject.TitleAfterName, person.TitleAfterName)
+	}
+}
+
+func Test_SearchSubject_ByPersonId(t *testing.T) {
+	t.Parallel()
+
+	res, err := rzp.SearchPerson(SearchPersonQuery{Surname: "novak"})
+	if err != nil {
+		t.Fatalf("Unable to search person %v", err)
+	}
+	if len(res.People) == 0 {
+		t.Fatalf("Expected at least one person")
+	}
+	personId := res.People[0].PersonId
+
+	subjects, err := rzp.SearchSubject(SearchSubjectQuery{PersonId: personId})
+	if err != nil {
+		t.Fatalf("Unable to search subject %v", err)
+	}
+	if len(subjects.Subjects) == 0 {
+		t.Fatalf("Expected at least one subject")
 	}
 }
