@@ -256,3 +256,63 @@ func Test_SearchSubject_ByPersonId(t *testing.T) {
 		t.Fatalf("Expected at least one subject")
 	}
 }
+
+func Test_SearchAddress_SingleResult(t *testing.T) {
+	t.Parallel()
+
+	res, err := rzp.SearchAddress("milovicka 9")
+	if err != nil {
+		t.Fatalf("Unable to search address %v", err)
+	}
+	if len(res) != 1 {
+		t.Fatalf("Expected exactly one address, got %d", len(res))
+	}
+
+	address := res[0]
+	if address.Address != "Milovická 197/9, 198 00, Praha 9 - Hloubětín" {
+		t.Errorf("Expected address to be Milovická 197/9, 198 00, Praha 9 - Hloubětín, got %s", address.Address)
+	}
+	if address.Code != AddressCode(22421611) {
+		t.Errorf("Expected code to be 22421611, got %d", address.Code)
+	}
+}
+
+func Test_SearchAddress_ManyResults(t *testing.T) {
+	t.Parallel()
+
+	res, err := rzp.SearchAddress("zborovska 4")
+	if err != nil {
+		t.Fatalf("Unable to search address %v", err)
+	}
+	if len(res) < 11 {
+		t.Fatalf("Expected at least 11 results, got %d", len(res))
+	}
+}
+
+func Test_SearchAddress_SearchBySubjectAddress(t *testing.T) {
+	t.Parallel()
+
+	subjects, err := rzp.SearchSubject(SearchSubjectQuery{Name: "novak", SubjectType: "enterpreneur"})
+	if err != nil {
+		t.Fatalf("Unable to search subject %v", err)
+	}
+	if len(subjects.Subjects) == 0 {
+		t.Fatalf("Expected at least one subject")
+	}
+
+	subject := subjects.Subjects[0]
+	address, err := subject.Address.ToSearchableString()
+	if err != nil {
+		t.Fatalf("Unable to convert address '%s' to searchable string %v", subject.Address, err)
+	}
+	res, err := rzp.SearchAddress(address)
+	if err != nil {
+		t.Fatalf("Unable to search address %v", err)
+	}
+	if len(res) == 0 {
+		t.Fatalf("Expected at least one address when searching by subject address %s", subject.Address)
+	}
+	if res[0].Address != string(subject.Address) {
+		t.Errorf("Expected address to be %s, got %s", subject.Address, res[0].Address)
+	}
+}

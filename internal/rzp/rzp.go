@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"time"
 
 	"github.com/fstaffa/czsnoop/internal/rzp/statement"
@@ -68,7 +69,10 @@ func getSessionId(c *http.Client, context context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to do request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unexpected status code: %d and status %s", resp.StatusCode, resp.Status)
 	}
@@ -82,10 +86,10 @@ func getSessionId(c *http.Client, context context.Context) (string, error) {
 }
 
 type Subject struct {
-	Name    string    `json:"nazev"`
-	Ico     types.Ico `json:"ico"`
-	Address string    `json:"sidlo"`
-	Ssarzp  Ssarzp    `json:"ssarzp"`
+	Name    string     `json:"nazev"`
+	Ico     types.Ico  `json:"ico"`
+	Address RzpAddress `json:"sidlo"`
+	Ssarzp  Ssarzp     `json:"ssarzp"`
 	// either P for Legal Entity or F for natural person
 	Type string `json:"typ"`
 }
@@ -102,6 +106,7 @@ type SearchSubjectQuery struct {
 	// either 'enterpreneur' or 'statutory body'
 	SubjectType string
 	PersonId    PersonId
+	AddressCode AddressCode
 }
 
 func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, error) {
@@ -135,7 +140,10 @@ func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, er
 	if err != nil {
 		return SearchSubjectResponse{}, fmt.Errorf("unable to do request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+	}()
 	if resp.StatusCode != http.StatusOK {
 		contentB, err := io.ReadAll(resp.Body)
 		var contentS string
@@ -159,8 +167,18 @@ func (r *Rzp) SearchSubject(query SearchSubjectQuery) (SearchSubjectResponse, er
 	return searchResult, nil
 }
 
+type RzpAddress string
+
+func (a RzpAddress) ToSearchableString() (string, error) {
+	parts := strings.Split(string(a), ",")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("unexpected address format: %s", a)
+	}
+	return fmt.Sprintf("%s %s", parts[0], parts[2]), nil
+}
+
 type SubjectDetail struct {
-	Address            string
+	Address            RzpAddress
 	Ico                types.Ico
 	FullNameWithTitles string
 	Trades             []Trade
@@ -190,7 +208,10 @@ func (r *Rzp) GetSubjectDetails(ssarzp Ssarzp) (SubjectDetail, error) {
 	if err != nil {
 		return SubjectDetail{}, fmt.Errorf("unable to do request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return SubjectDetail{}, fmt.Errorf("unexpected status code: %d and status %s", resp.StatusCode, resp.Status)
 	}
@@ -219,7 +240,10 @@ func (r *Rzp) getSubjectStatement(path string) (SubjectDetail, error) {
 	if err != nil {
 		return SubjectDetail{}, fmt.Errorf("unable to do deeper subject details request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return SubjectDetail{}, fmt.Errorf("unexpected status code: %d and status %s", resp.StatusCode, resp.Status)
@@ -258,7 +282,7 @@ func (r *Rzp) getSubjectStatement(path string) (SubjectDetail, error) {
 		}
 	}
 	return SubjectDetail{
-		Address:            enterpreneuerDetail.AdresaPodnikani.PlatnostAdresy.ZmenaAdresy.TextAdresy,
+		Address:            RzpAddress(enterpreneuerDetail.AdresaPodnikani.PlatnostAdresy.ZmenaAdresy.TextAdresy),
 		Ico:                types.Ico(enterpreneuerDetail.IdentifikacniCislo.PlatnostHodnoty.Hodnota),
 		FullNameWithTitles: enterpreneuerDetail.PodnikatelOsoba.ZucastnenaOsobaDetail.JmenoPrijmeni.Hodnota,
 		FirstName:          enterpreneuerDetail.PodnikatelOsoba.ZucastnenaOsobaDetail.Jmeno.Hodnota,
@@ -336,7 +360,10 @@ func (r *Rzp) SearchPerson(query SearchPersonQuery) (SearchPersonResponse, error
 	if err != nil {
 		return SearchPersonResponse{}, fmt.Errorf("unable to do search person request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return SearchPersonResponse{}, fmt.Errorf("unexpected status code: %d and status %s", resp.StatusCode, resp.Status)
 	}
@@ -348,4 +375,44 @@ func (r *Rzp) SearchPerson(query SearchPersonQuery) (SearchPersonResponse, error
 	}
 
 	return searchResult, nil
+}
+
+type SearchAddressResponse struct {
+	Addresses []Address `json:"adresy"`
+}
+
+type AddressCode int
+
+type Address struct {
+	Address string      `json:"adrpop"`
+	Code    AddressCode `json:"adrkod"`
+}
+
+func (r *Rzp) SearchAddress(query string) ([]Address, error) {
+	req, err := http.NewRequestWithContext(r.context, http.MethodGet, "https://www.rzp.cz/rzp/api-ext/srv/ruian/v1/fndtxt/adrLok", nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create search address request: %v", err)
+	}
+	q := req.URL.Query()
+	q.Add("q", query)
+	req.URL.RawQuery = q.Encode()
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("unable to do search address request: %v", err)
+	}
+	defer func() {
+		resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+	}()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code when searching address: %d and status %s", resp.StatusCode, resp.Status)
+	}
+
+	var searchResult SearchAddressResponse
+	err = json.NewDecoder(resp.Body).Decode(&searchResult)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal search address response: %v", err)
+	}
+
+	return searchResult.Addresses, nil
 }

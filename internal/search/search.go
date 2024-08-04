@@ -20,15 +20,16 @@ type PersonSearchInput struct {
 }
 
 type Person struct {
-	Citizenship     string
-	BirthDate       time.Time
-	FirstName       string
-	LastName        string
-	TitleBeforeName string
-	TitleAfterName  string
-	FullName        string
-	Address         string
-	Subjects        []EconomicSubject
+	Citizenship         string
+	BirthDate           time.Time
+	FirstName           string
+	LastName            string
+	TitleBeforeName     string
+	TitleAfterName      string
+	FullName            string
+	Address             string
+	Subjects            []EconomicSubject
+	SameAddressSubjects []string
 }
 
 type EconomicSubject struct {
@@ -71,7 +72,7 @@ func Rzp(input PersonSearchInput, logger *slog.Logger) ([]Person, error) {
 			for _, subject := range subjects.Subjects {
 				economicSubjects = append(economicSubjects, EconomicSubject{
 					Name:    subject.Name,
-					Address: subject.Address,
+					Address: string(subject.Address),
 					Ico:     subject.Ico,
 				})
 			}
@@ -92,7 +93,23 @@ func Rzp(input PersonSearchInput, logger *slog.Logger) ([]Person, error) {
 						cancel(err)
 						resultChan <- types.Result[Person]{Err: err}
 					}
-					person.Address = subject.Address
+					addressCode, err := rzpAddressToCode(subjectDetail.Address, client, cancel, logger)
+					if err != nil {
+						logger.Warn("Unable to get address code for subject", slog.String("name", subject.Name), slog.String("address", string(subject.Address)))
+					}
+
+					sameAddressSubjects, err := client.SearchSubject(rzp.SearchSubjectQuery{
+						AddressCode: addressCode,
+					})
+					if err != nil {
+						logger.Warn("Unable to search subjects with same address", slog.String("address", string(subject.Address)))
+					}
+					person.SameAddressSubjects = make([]string, 0, len(sameAddressSubjects.Subjects))
+					for _, sameAddressSubject := range sameAddressSubjects.Subjects {
+						person.SameAddressSubjects = append(person.SameAddressSubjects, sameAddressSubject.Name)
+					}
+
+					person.Address = string(subject.Address)
 					person.Citizenship = subjectDetail.Citizenship
 				}
 			}
@@ -140,4 +157,24 @@ func rzpPersonSearch(searchQuery rzp.SearchSubjectQuery, client *rzp.Rzp, cancel
 
 	logger.Debug("Found persons", slog.Int("count", len(persons.People)))
 	return persons.People, nil
+}
+
+func rzpAddressToCode(address rzp.RzpAddress, client *rzp.Rzp, cancel context.CancelCauseFunc, logger *slog.Logger) (rzp.AddressCode, error) {
+	searchable, err := address.ToSearchableString()
+	if err != nil {
+		err := fmt.Errorf("unable to convert address to searchable string: %v", err)
+		return 0, err
+	}
+
+	addresses, err := client.SearchAddress(searchable)
+	if err != nil {
+		err := fmt.Errorf("unable to search address in RZP: %v", err)
+		cancel(err)
+		return 0, err
+	}
+	if len(addresses) != 1 {
+		return 0, fmt.Errorf("expected exactly one address, got %d", len(addresses))
+	}
+
+	return addresses[0].Code, nil
 }
