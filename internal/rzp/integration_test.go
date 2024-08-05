@@ -10,11 +10,15 @@ import (
 	"time"
 )
 
-var rzp *Rzp
+var client *Rzp
 
 func TestMain(m *testing.M) {
 	var err error
-	rzp, err = CreateClient(context.Background(), slog.Default())
+	if os.Getenv("INTEGRATION") == "" {
+		fmt.Println("skipping integration tests: set INTEGRATION environment variable")
+	} else {
+		client, err = CreateClient(context.Background(), slog.Default())
+	}
 	if err != nil {
 		fmt.Printf("Unable to create client %v", err)
 		os.Exit(1)
@@ -25,6 +29,9 @@ func TestMain(m *testing.M) {
 
 func Test_CreateClient(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 	rzp, err := CreateClient(context.Background(), slog.Default())
 	if err != nil {
 		t.Errorf("Received unexpected error %v", err)
@@ -48,6 +55,9 @@ func Test_CreateClient(t *testing.T) {
 
 func Test_SearchSubject_ByName_Count(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 
 	tests := map[string]struct {
 		name                        string
@@ -62,7 +72,7 @@ func Test_SearchSubject_ByName_Count(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			res, err := rzp.SearchSubject(test.query)
+			res, err := client.SearchSubject(test.query)
 			if err != nil {
 				t.Fatalf("Received unexpected error %v", err)
 			}
@@ -80,8 +90,11 @@ func Test_SearchSubject_ByName_Count(t *testing.T) {
 
 func Test_SearchSubject_DetailedResult(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 
-	res, err := rzp.SearchSubject(SearchSubjectQuery{Ico: "01895541", SubjectType: "enterpreneur"})
+	res, err := client.SearchSubject(SearchSubjectQuery{Ico: "01895541", SubjectType: "enterpreneur"})
 
 	if err != nil {
 		t.Fatalf("Unable to search subject %v", err)
@@ -110,15 +123,18 @@ func Test_SearchSubject_DetailedResult(t *testing.T) {
 
 func Test_GetSubjectDetails(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 
-	result, err := rzp.SearchSubject(SearchSubjectQuery{Name: "ing phd novak", SubjectType: "enterpreneur"})
+	result, err := client.SearchSubject(SearchSubjectQuery{Name: "ing phd novak", SubjectType: "enterpreneur"})
 	if err != nil {
 		t.Fatalf("Unable to search subject %v", err)
 	}
 
 	subject := result.Subjects[0]
 
-	detail, err := rzp.GetSubjectDetails(subject.Ssarzp)
+	detail, err := client.GetSubjectDetails(subject.Ssarzp)
 	if err != nil {
 		t.Fatalf("Received unexpected error %v", err)
 	}
@@ -172,8 +188,11 @@ func Test_GetSubjectDetails(t *testing.T) {
 
 func Test_SearchPerson_ByName(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 
-	res, err := rzp.SearchPerson(SearchPersonQuery{Surname: "novak"})
+	res, err := client.SearchPerson(SearchPersonQuery{Surname: "novak"})
 
 	if err != nil {
 		t.Fatalf("Unable to search person %v", err)
@@ -204,8 +223,11 @@ func Test_SearchPerson_ByName(t *testing.T) {
 
 func Test_SearchPerson_ParseTitle(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 
-	initialSearch, err := rzp.SearchSubject(SearchSubjectQuery{Name: "novak csc", SubjectType: "enterpreneur"})
+	initialSearch, err := client.SearchSubject(SearchSubjectQuery{Name: "novak csc", SubjectType: "enterpreneur"})
 	if err != nil {
 		t.Fatalf("Unable to search subject %v", err)
 	}
@@ -214,12 +236,12 @@ func Test_SearchPerson_ParseTitle(t *testing.T) {
 		t.Fatalf("Expected at least one subject")
 	}
 
-	detailedSubject, err := rzp.GetSubjectDetails(initialSearch.Subjects[0].Ssarzp)
+	detailedSubject, err := client.GetSubjectDetails(initialSearch.Subjects[0].Ssarzp)
 	if err != nil {
 		t.Fatalf("Unable to get subject details: %v", err)
 	}
 
-	res, err := rzp.SearchPerson(SearchPersonQuery{Surname: detailedSubject.LastName, FirstName: detailedSubject.FirstName, DateOfBirth: detailedSubject.BirthDate})
+	res, err := client.SearchPerson(SearchPersonQuery{Surname: detailedSubject.LastName, FirstName: detailedSubject.FirstName, DateOfBirth: detailedSubject.BirthDate})
 	if err != nil {
 		t.Fatalf("Unable to search person %v", err)
 	}
@@ -238,8 +260,11 @@ func Test_SearchPerson_ParseTitle(t *testing.T) {
 
 func Test_SearchSubject_ByPersonId(t *testing.T) {
 	t.Parallel()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests: set INTEGRATION environment variable")
+	}
 
-	res, err := rzp.SearchPerson(SearchPersonQuery{Surname: "novak"})
+	res, err := client.SearchPerson(SearchPersonQuery{Surname: "novak"})
 	if err != nil {
 		t.Fatalf("Unable to search person %v", err)
 	}
@@ -248,7 +273,7 @@ func Test_SearchSubject_ByPersonId(t *testing.T) {
 	}
 	personId := res.People[0].PersonId
 
-	subjects, err := rzp.SearchSubject(SearchSubjectQuery{PersonId: personId})
+	subjects, err := client.SearchSubject(SearchSubjectQuery{PersonId: personId})
 	if err != nil {
 		t.Fatalf("Unable to search subject %v", err)
 	}
