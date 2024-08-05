@@ -26,6 +26,6 @@ jobs:
       - name: Golang lint ci
         run: nix develop --command golangci-lint run
       - name: Go build
-        run: nix flake build
+        run: nix build
       - name: Golang integration tests
         run: INTEGRATION=true nix develop --command go test ./...
